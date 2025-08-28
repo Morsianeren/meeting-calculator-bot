@@ -28,13 +28,54 @@ def send_email(to, subject, body):
         server.sendmail(EMAIL_ADDRESS, to, msg.as_string())
 
 # Fetch emails from IMAP
-def fetch_emails():
+def fetch_emails(max_emails=None, search_criteria='ALL'):
     with imaplib.IMAP4_SSL(IMAP_SERVER) as mail:
         mail.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         mail.select('inbox')
-        typ, data = mail.search(None, 'ALL')
+        typ, data = mail.search(None, search_criteria)
         emails = []
-        for num in data[0].split():
+        
+        # If no emails found
+        if not data[0]:
+            return emails
+            
+        email_ids = data[0].split()
+        
+        # Limit the number of emails if specified
+        if max_emails:
+            email_ids = email_ids[-max_emails:]
+            
+        for num in email_ids:
             typ, msg_data = mail.fetch(num, '(RFC822)')
-            emails.append(msg_data[0][1])
+            if msg_data and msg_data[0]:
+                emails.append(msg_data[0][1])
         return emails
+
+# Parse email message into a more usable format
+def parse_email(raw_email):
+    import email
+    from email.header import decode_header
+    
+    message = email.message_from_bytes(raw_email)
+    
+    subject = message.get('Subject', '')
+    from_email = message.get('From', '')
+    date = message.get('Date', '')
+    
+    body = ""
+    if message.is_multipart():
+        for part in message.walk():
+            content_type = part.get_content_type()
+            if content_type == "text/plain" or content_type == "text/html":
+                body = part.get_payload(decode=True).decode()
+                break
+    else:
+        body = message.get_payload(decode=True).decode()
+        
+    return {
+        'subject': subject,
+        'from': from_email,
+        'date': date,
+        'body': body,
+        'raw': message
+    }
