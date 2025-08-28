@@ -8,6 +8,10 @@ from dotenv import load_dotenv
 import sys
 import email
 import imaplib
+
+# Explicitly load environment variables from .env
+load_dotenv(os.path.join(os.path.dirname(__file__), '../config/.env'))
+
 from src.email.email_handler import send_email, fetch_emails, EMAIL_ADDRESS
 
 # Skip these tests if integration testing is not enabled
@@ -15,6 +19,8 @@ pytestmark = [pytest.mark.integration]
 
 # Function to check if the environment variables for email are set
 def has_email_config():
+    # Print the current configuration for debugging
+    print(f"Email config check: SMTP_SERVER={os.getenv('SMTP_SERVER')}")
     return (
         os.getenv('EMAIL_ADDRESS') and 
         os.getenv('EMAIL_PASSWORD') and
