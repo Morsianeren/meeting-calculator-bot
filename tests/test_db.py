@@ -1,5 +1,5 @@
 import pytest
-from src import db
+from src.db import db
 
 @pytest.fixture
 def meeting_record():

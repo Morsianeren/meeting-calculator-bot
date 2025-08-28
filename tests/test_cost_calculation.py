@@ -1,5 +1,5 @@
 import pytest
-from src import cost_calculator
+from src.utils import cost_calculator
 
 # Mock data for initials to role and role to cost
 INITIALS_ROLES = {'mak': 'developer', 'crh': 'developer', 'kk': 'ceo'}

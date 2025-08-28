@@ -1,5 +1,5 @@
 import pytest
-from src import feedback
+import src.feedback.feedback as feedback
 
 @pytest.fixture
 def feedback_data():

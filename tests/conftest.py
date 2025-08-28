@@ -1,5 +1,12 @@
 # Shared pytest fixtures for MeetingBot tests
 import pytest
+import os
+
+# Set mock environment variables for tests
+os.environ['EMAIL_ADDRESS'] = 'test@example.com'
+os.environ['EMAIL_PASSWORD'] = 'test_password'
+os.environ['IMAP_SERVER'] = 'localhost'
+os.environ['SMTP_SERVER'] = 'localhost'
 
 @pytest.fixture
 def sample_participants():
