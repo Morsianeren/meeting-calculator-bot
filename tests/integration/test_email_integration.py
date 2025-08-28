@@ -10,7 +10,7 @@ import email
 import imaplib
 
 # Explicitly load environment variables from .env
-load_dotenv(os.path.join(os.path.dirname(__file__), '../config/.env'))
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../config/.env'))
 
 from src.email.email_handler import send_email, fetch_emails, EMAIL_ADDRESS
 

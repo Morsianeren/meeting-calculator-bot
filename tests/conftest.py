@@ -3,13 +3,20 @@ import pytest
 import os
 from dotenv import load_dotenv
 
-# Only set mock environment variables if we're not running integration tests
-def pytest_configure(config):
+def is_integration_test(config):
+    """Determine if the current test is an integration test."""
+    # Check if the marker is explicitly used
     markers = config.getoption("-m", "")
+    if any(marker in markers for marker in ["integration", "email"]):
+        return True
     
-    # Only set mock values for regular tests, not for integration tests
-    if not any(marker in markers for marker in ["integration", "email"]):
-        print("Setting mock email environment for unit tests")
+    # Check if we're running tests from the integration directory
+    test_paths = [arg for arg in config.args if 'test' in arg]
+    return any('integration' in path for path in test_paths)
+
+def pytest_configure(config):
+    if not is_integration_test(config):
+        print("Setting mock email environment for component tests")
         os.environ['EMAIL_ADDRESS'] = 'test@example.com'
         os.environ['EMAIL_PASSWORD'] = 'test_password'
         os.environ['IMAP_SERVER'] = 'localhost'
