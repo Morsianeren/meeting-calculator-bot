@@ -57,6 +57,7 @@
   - Participants
   - Feedback responses and submission timestamps
   - For each meeting, a boolean field `feedback_sent` must indicate whether feedback has been sent to the organizer (true) or not (false).
+  - For each participant, a boolean field `feedback_requested` must indicate if feedback request has been sent to the participant.
 - Storage must be in:
   - A local **SQLite database**
   - All meetings are stored in the main database permanently; there is no temporary database.

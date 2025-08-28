@@ -14,7 +14,7 @@ flowchart TD
         Feedback[Feedback Survey]
     end
     subgraph Data Storage
-        MainDB[Main Meeting DB]
+        MainDB[Database]
     end
     IMAP --> ParseInvite
     ParseInvite --> FilterSender

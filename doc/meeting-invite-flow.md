@@ -5,7 +5,7 @@ sequenceDiagram
     participant User as Sender (@deif.com)
     participant Bot as MeetingBot
     participant IMAP as IMAP Server
-    participant DB as Temp Meeting DB
+    participant DB as Database
     User->>IMAP: Send meeting invite
     IMAP->>Bot: New email received
     Bot->>Bot: Filter sender (@deif.com)

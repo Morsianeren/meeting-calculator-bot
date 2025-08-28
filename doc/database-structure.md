@@ -15,6 +15,7 @@ erDiagram
         initials VARCHAR
         role VARCHAR
         hourly_cost INT
+        feedback_requested BOOLEAN
     }
     FEEDBACK {
         id INT PK
