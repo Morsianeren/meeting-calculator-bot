@@ -1,0 +1,7 @@
+pytest
+flask
+python-dotenv
+sqlite3
+pytz
+ics
+flake8
