@@ -56,11 +56,11 @@
   - Meeting time
   - Participants
   - Feedback responses and submission timestamps
+  - For each meeting, a boolean field `feedback_sent` must indicate whether feedback has been sent to the organizer (true) or not (false).
 - Storage must be in:
   - A local **SQLite database**
-  - Each meeting has its own temporary database
-  - Finnished meetings where feedback has been sent to the organizer, must be moved to one big database, so deeper analysis and statistics can be performed later.
-- The bot must automatically trigger feedback aggregation **1 day after the meeting ends**.
+  - All meetings are stored in the main database permanently; there is no temporary database.
+- The bot must automatically trigger feedback aggregation **1 day after the meeting ends** and update the `feedback_sent` field accordingly.
 
 ## 6. Security & Privacy
 - Credentials for the bot’s email account must **not** be hardcoded.
