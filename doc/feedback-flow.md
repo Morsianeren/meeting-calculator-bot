@@ -3,7 +3,7 @@
 ```mermaid
 sequenceDiagram
     participant Bot as MeetingBot
-    participant DB as Temp Meeting DB
+    participant DB as Database
     participant User as Participant
     participant Org as Organizer
     Bot->>DB: Track meeting end time
@@ -13,5 +13,4 @@ sequenceDiagram
     Bot->>Bot: Wait 1 day
     Bot->>DB: Aggregate feedback
     Bot->>Org: Send anonymized results
-    DB->>DB: Move meeting to Main DB
 ```
