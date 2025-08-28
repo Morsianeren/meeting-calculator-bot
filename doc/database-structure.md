@@ -7,6 +7,7 @@ erDiagram
         organizer VARCHAR
         start_time DATETIME
         end_time DATETIME
+        feedback_sent BOOLEAN
     }
     PARTICIPANT {
         id INT PK

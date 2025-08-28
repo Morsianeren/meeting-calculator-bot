@@ -14,7 +14,6 @@ flowchart TD
         Feedback[Feedback Survey]
     end
     subgraph Data Storage
-        TempDB[Temporary Meeting DB]
         MainDB[Main Meeting DB]
     end
     IMAP --> ParseInvite
@@ -22,8 +21,7 @@ flowchart TD
     FilterSender --> ExtractDetails
     ExtractDetails --> CostCalc
     CostCalc --> SMTP
-    ExtractDetails --> TempDB
-    Feedback --> TempDB
-    TempDB --> MainDB
+    ExtractDetails --> MainDB
+    Feedback --> MainDB
     SMTP --> Feedback
 ```
