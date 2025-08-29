@@ -24,22 +24,35 @@ class Bot:
         while True:
             meetings = self.parse_meeting_details()
             for details in meetings:
-                cost = self.calculate_meeting_cost(details)
-                self.email_server.send_email(details['organizer'], "Meeting Cost Summary", f"Cost: {cost}")
-                print(f"Processed meeting '{details['subject']}' with cost {cost} to {details['organizer']}")
+                cost, explanation = self.calculate_meeting_cost(details)
+                self.email_server.send_email(details['from'], f"{details['subject']} - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
+                print(f"Processed meeting '{details['subject']}' with cost {cost} to {details['from']}")
             time.sleep(60) # Poll every minute
 
     def extract_usernames_from_fields(self, fields):
+        """
+        Extracts usernames from email addresses matching <XXX@deif.com> pattern
+        Only accepts usernames between 2-4 characters
+        """
         all_emails = set()
         for field in fields:
-            usernames = re.findall(r'([\w\.-]+)@', field)
-            all_emails.update(usernames)
+            # Find all matches with 2-4 letter usernames
+            email_matches = re.findall(r'<(\w{2,4})@deif\.com>', field)
+            all_emails.update(email_matches)
+        # Convert all usernames to lowercase
+        all_emails = {email.lower() for email in all_emails}
         return sorted(all_emails)
 
     def parse_meeting_details(self) -> list:
         emails_dict = self.email_server.poll_for_new_emails()
         meetings = []
         for eid, mail in emails_dict.items():
+            # Extract email address from "from" field using regex
+            from_email = ""
+            from_match = re.search(r'[\w\.-]+@[\w\.-]+', mail.get('from', ''))
+            if from_match:
+                from_email = from_match.group(0)
+                
             fields = [mail.get('from', ''), mail.get('body', '')]
             participants = self.extract_usernames_from_fields(fields)
             body = mail.get('body', '')
@@ -47,6 +60,7 @@ class Bot:
             meetings.append({
                 'participants': participants,
                 'organizer': mail.get('from', ''),
+                'from': from_email,
                 'subject': mail.get('subject', ''),
                 'date': mail.get('date', ''),
                 'body': body,
@@ -54,20 +68,35 @@ class Bot:
             })
         return meetings
 
-    def calculate_meeting_cost(self, details: dict) -> float:
+    def calculate_meeting_cost(self, details: dict) -> tuple:
         """
-        Calculate the total meeting cost by summing wage * duration(hours) for each participant.
-        Uses username_to_wage for each participant.
+        Calculate the total meeting cost and return explanation.
+        
+        Args:
+            details: Dict with meeting information
+            
+        Returns:
+            Tuple of (cost, explanation)
         """
         duration_min = details.get('duration')
         if duration_min is None or duration_min <= 0:
-            duration_hr = 1.0  # Default to 1 hour if duration is missing or invalid
+            duration_hr = 1.0  # Default to 1 hour 
+            duration_str = "1 hour (default)"
         else:
             duration_hr = duration_min / 60.0
+            duration_str = f"{duration_min} minutes ({duration_hr:.2f} hours)"
+        
         total_cost = 0.0
+        cost_breakdown = []
+        
         for username in details.get('participants', []):
-            total_cost += username_to_wage(username) * duration_hr
-        return total_cost
+            wage = username_to_wage(username)
+            participant_cost = wage * duration_hr
+            total_cost += participant_cost
+            cost_breakdown.append(f"{username}: {wage}/hr * {duration_hr:.2f}hr = {participant_cost:.2f}")
+        
+        explanation = f"Meeting cost: {total_cost:.2f} for {duration_str}\nBreakdown:\n" + "\n".join(cost_breakdown)
+        return total_cost, explanation
 
     def extract_duration_from_body(self, body: str) -> int:
         """
