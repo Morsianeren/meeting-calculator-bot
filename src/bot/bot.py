@@ -98,7 +98,7 @@ class Bot:
         explanation = f"Meeting cost: {total_cost:.2f} for {duration_str}\nBreakdown:\n" + "\n".join(cost_breakdown)
         return total_cost, explanation
 
-    def extract_duration_from_body(self, body: str) -> int:
+    def extract_duration_from_body(self, body: str) -> int | None:
         """
         Extracts meeting duration in minutes from the 'When:' line in the email body.
         Example line: 'When: 29 August 2025 21:00-21:30.'
