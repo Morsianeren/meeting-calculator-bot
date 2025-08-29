@@ -1,6 +1,0 @@
-pytest
-flask
-python-dotenv
-pytz
-ics
-flake8
