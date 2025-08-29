@@ -88,7 +88,7 @@ class DB:
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         return conn
         
-    def add_meeting(self, meeting_details: Dict[str, Any]) -> None:
+    def add_meeting(self, meeting_details: Dict[str, Any]) -> bool:
         """
         Adds meeting to database based on parse_meeting_details output.
         Skips if meeting already exists (based on meeting_uid).
@@ -97,7 +97,7 @@ class DB:
             meeting_details: Meeting details dictionary
             
         Returns:
-            meeting_uid of the created/existing meeting
+            True if added, false if not
             
         Example input:
         {
@@ -122,7 +122,7 @@ class DB:
         if existing:
             # No mames, this meeting already exists pendejo!
             conn.close()
-            return meeting_uid
+            return False
         
         # Parse times
         start_time = datetime.strptime(meeting_details.get('date', ''), '%Y-%m-%d %H:%M:%S')
@@ -148,7 +148,7 @@ class DB:
             end_time.strftime('%Y-%m-%d %H:%M:%S'),
             duration,
             meeting_details.get('cost', 0.0),
-            False,
+            True,
             feedback_token
         ))
         
@@ -192,4 +192,40 @@ class DB:
         conn.commit()
         conn.close()
         
-        return
+        return True
+    
+    def check_meeting_exists(self, meeting_id: str) -> bool:
+        """
+        Checks if meeting exists in database by meeting_id
+        
+        Args:
+            meeting_id: Meeting ID to check
+            
+        Returns:
+            True if meeting exists, False if not
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1 FROM MEETING WHERE meeting_uid = ?", (meeting_id,))
+        exists = cursor.fetchone() is not None
+        conn.close()
+        return exists
+    
+    def set_feedback_sent(self, meeting_id: str, sent: bool) -> bool:
+        """
+        Updates feedback_sent status for a meeting
+        
+        Args:
+            meeting_id: Meeting ID to update
+            sent: New feedback_sent status
+            
+        Returns:
+            True if updated successfully, False if meeting not found
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE MEETING SET feedback_sent = ? WHERE meeting_uid = ?", (sent, meeting_id))
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success

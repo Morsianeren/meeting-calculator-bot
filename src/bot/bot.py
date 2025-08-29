@@ -17,26 +17,52 @@ else:
 
 
 class Bot:
+
+    FEEDBACK_MESSAGE = "Would you like feedback on meeting?"
+
     def __init__(self, email_server: EmailServer, db: DB):
         self.email_server = email_server
         self.db = db
     def run(self):
-        #while True:
-        meetings = self.parse_meeting_details()
-        for details in meetings:
-            cost, explanation = self.calculate_meeting_cost(details)
-            
-            # Add cost to the meeting details
-            details['cost'] = cost
-            
-            # Save meeting in database
-            self.db.add_meeting(details)
-            
-            # Send email notification
-            self.email_server.send_email(details['from'], f"{details['subject']} [ID: {details['meeting_id']}] - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
-            print(f"Processed meeting '{details['subject']}'[ID: {details['meeting_id']}] with cost {cost} to {details['from']}")
-        
-        #time.sleep(60) # Poll every minute
+        while True:
+            meetings = self.parse_meeting_details()
+            for details in meetings:
+                
+                if self.FEEDBACK_MESSAGE in details['subject']:
+                    # Check if meeting is in database
+                    if not self.db.check_meeting_exists(details['meeting_id']):
+                        # Do not process this meeting since cost has not been requested
+                        continue
+
+                    # Check if "yes" is in details['body'].lower():
+                    if "yes" in details['body'].lower():
+                        # Send feedback request email
+                        self.email_server.send_email(details['from'], f"Feedback Request [ID: {details['meeting_id']}]", f"Thank you for your interest in getting feedback!")
+                        # Change feedback_sent to False in DB
+                        self.db.set_feedback_sent(details['meeting_id'], False)
+                        continue
+
+                cost, explanation = self.calculate_meeting_cost(details)
+                
+                # Add cost to the meeting details
+                details['cost'] = cost
+                
+                # Save meeting in database
+                added = self.db.add_meeting(details)
+                
+                # Send email notification
+                print(f"From: {details['from']}")
+                self.email_server.send_email(details['from'], f"{details['subject']} [ID: {details['meeting_id']}] - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
+                print(f"Processed meeting '{details['subject']}'[ID: {details['meeting_id']}] with cost {cost} to {details['from']}")
+
+                # if from is the organizer, send confirmation email
+                print(f"Checking if {details['from']} is the organizer: {details['organizer']}")
+                organizer_with_mail = f"{details['organizer']}@deif.com"
+                if details['from'] == organizer_with_mail:
+                    print(f"Requesting organizer if they would like feedback for meeting: {details['meeting_id']}")
+                    self.email_server.send_email(details['from'], f"{self.FEEDBACK_MESSAGE} [ID: {details['meeting_id']}]", f"Respond with 'Yes' in the body if you want feedback!")
+
+        time.sleep(60) # Poll every minute
 
     def extract_usernames_from_fields(self, fields):
         """
@@ -76,9 +102,20 @@ class Bot:
             if from_match:
                 from_email = from_match.group(0)
                 
+            body = mail.get('body', '')
+
+            # Extract organizer initials from email
+            organizer_initials = ""
+            # Regex for getting organizer from "From: Name <email@domain>" format
+            organizer_match = re.search(r'From:.*?<(\w{2,4})@deif\.com>', body, re.IGNORECASE)
+            if organizer_match:
+                organizer_initials = organizer_match.group(1).lower()
+            else:
+                # Fallback to full email if no initials found
+                organizer_initials = from_email
+                
             fields = [mail.get('from', ''), mail.get('body', '')]
             participants = self.extract_usernames_from_fields(fields)
-            body = mail.get('body', '')
             duration = self.extract_duration_from_body(body)
             meeting_id = self.extract_teams_meeting_id(body)
             
@@ -95,7 +132,7 @@ class Bot:
                 
             meetings.append({
                 'participants': participants,
-                'organizer': mail.get('from', ''),
+                'organizer': organizer_initials,
                 'from': from_email,
                 'subject': mail.get('subject', ''),
                 'date': formatted_date,

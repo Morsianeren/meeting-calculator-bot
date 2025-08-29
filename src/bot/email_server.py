@@ -28,10 +28,10 @@ class EmailServer:
                 {'subject': 'FW: Testmøde - Ignorer', 
                  'from': 'Magnus Blach Klokker <mak@deif.com>', 
                  'date': 'Fri, 29 Aug 2025 07:05:03 +0000', 
-                 'body': '________________________________\r\nFrom: Magnus Blach Klokker <mak@deif.com>\r\nSent: 26 August 2025 20:35:20 (UTC+01:00) Brussels, Copenhagen, Madrid, Paris\r\nTo: Christian Raun Hornebo <crh@deif.com>\r\nCc: morsianeren@gmail.com <morsianeren@gmail.com>; meeting-bot@gmx.com <meeting-bot@gmx.com>; meetingbot@gmx.com <meetingbot@gmx.com>\r\nSubject: Testmde - Ignorer\r\nWhen: 29 August 2025 21:00-21:30.\r\nWhere: Deif Placering\r\n\r\n\r\ntestbeskrivelse'}}
+                 'body': '________________________________\r\nFrom: Magnus Blach Klokker <mak@deif.com>\r\nSent: 26 August 2025 20:35:20 (UTC+01:00) Brussels, Copenhagen, Madrid, Paris\r\nTo: Christian Raun Hornebo <crh@deif.com>\r\nCc: morsianeren@gmail.com <morsianeren@gmail.com>; meeting-bot@gmx.com <meeting-bot@gmx.com>; meetingbott@gmx.com <meetingbott@gmx.com>\r\nSubject: Testmde - Ignorer\r\nWhen: 29 August 2025 21:00-21:30.\r\nWhere: Deif Placering\r\n\r\n\r\ntestbeskrivelse'}}
         """
         IMAP_SERVER = os.getenv('IMAP_HOST', 'imap.gmx.com')
-        EMAIL_ACCOUNT = os.getenv('IMAP_USER', 'meetingbot@gmx.com')
+        EMAIL_ACCOUNT = os.getenv('IMAP_USER', 'meetingbott@gmx.com')
         PASSWORD = os.getenv('IMAP_PASS', 'QWERTa123!')
         MAILBOX = os.getenv('IMAP_MAILBOX', 'INBOX')
         FETCH_LIMIT = 10
@@ -88,7 +88,7 @@ class EmailServer:
     def send_email(self, recipient: str, subject: str, body: str):
         SMTP_SERVER = os.getenv('SMTP_HOST', 'smtp.gmx.com')
         SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-        EMAIL_ACCOUNT = os.getenv('SMTP_USER', 'meetingbot@gmx.com')
+        EMAIL_ACCOUNT = os.getenv('SMTP_USER', 'meetingbott@gmx.com')
         PASSWORD = os.getenv('SMTP_PASS', 'QWERTa123!')
 
         msg = MIMEText(body)
