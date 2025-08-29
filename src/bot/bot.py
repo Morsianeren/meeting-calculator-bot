@@ -21,22 +21,22 @@ class Bot:
         self.email_server = email_server
         self.db = db
     def run(self):
-        while True:
-            meetings = self.parse_meeting_details()
-            for details in meetings:
-                cost, explanation = self.calculate_meeting_cost(details)
-                
-                # Add cost to the meeting details
-                details['cost'] = cost
-                
-                # Save meeting in database
-                meeting_id = self.db.add_meeting(details)
-                
-                # Send email notification
-                self.email_server.send_email(details['from'], f"{details['subject']} [ID: {details['meeting_id']}] - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
-                print(f"Processed meeting '{details['subject']}'[ID: {details['meeting_id']}] with cost {cost} to {details['from']}")
+        #while True:
+        meetings = self.parse_meeting_details()
+        for details in meetings:
+            cost, explanation = self.calculate_meeting_cost(details)
             
-            time.sleep(60) # Poll every minute
+            # Add cost to the meeting details
+            details['cost'] = cost
+            
+            # Save meeting in database
+            self.db.add_meeting(details)
+            
+            # Send email notification
+            self.email_server.send_email(details['from'], f"{details['subject']} [ID: {details['meeting_id']}] - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
+            print(f"Processed meeting '{details['subject']}'[ID: {details['meeting_id']}] with cost {cost} to {details['from']}")
+        
+        #time.sleep(60) # Poll every minute
 
     def extract_usernames_from_fields(self, fields):
         """
@@ -64,6 +64,9 @@ class Bot:
         return ""
 
     def parse_meeting_details(self) -> list:
+        """
+        Parses email data and extracts meeting details
+        """
         emails_dict = self.email_server.poll_for_new_emails()
         meetings = []
         for eid, mail in emails_dict.items():
@@ -78,12 +81,24 @@ class Bot:
             body = mail.get('body', '')
             duration = self.extract_duration_from_body(body)
             meeting_id = self.extract_teams_meeting_id(body)
+            
+            # Format date to match expected format in DB.add_meeting
+            date_str = mail.get('date', '')
+            try:
+                from datetime import datetime
+                # Parse email date format
+                parsed_date = datetime.strptime(date_str, '%a, %d %b %Y %H:%M:%S %z')
+                # Convert to expected format
+                formatted_date = parsed_date.strftime('%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                formatted_date = date_str  # Keep original if parsing fails
+                
             meetings.append({
                 'participants': participants,
                 'organizer': mail.get('from', ''),
                 'from': from_email,
                 'subject': mail.get('subject', ''),
-                'date': mail.get('date', ''),
+                'date': formatted_date,
                 'body': body,
                 'duration': duration,
                 'meeting_id': meeting_id,

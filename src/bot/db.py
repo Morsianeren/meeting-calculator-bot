@@ -21,17 +21,15 @@ class DB:
     
     def _initialize_db(self):
         """
-        Creates database tables if they don't exist according to the schema defined in 
-        database-structure.md
+        Creates database tables if they don't exist according to schema in database-structure.md
         """
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Create MEETING table
+        # Create MEETING table with meeting_uid as PK
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS MEETING (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            meeting_uid VARCHAR(255) NOT NULL,
+            meeting_uid VARCHAR(255) PRIMARY KEY,
             organizer_email VARCHAR(255) NOT NULL,
             subject VARCHAR(255) NOT NULL,
             start_time DATETIME NOT NULL,
@@ -47,14 +45,14 @@ class DB:
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS PARTICIPANT (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            meeting_id INTEGER NOT NULL,
+            meeting_uid VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL,
             initials VARCHAR(10) NOT NULL,
             role VARCHAR(100) NOT NULL,
             hourly_cost DECIMAL(10,2) NOT NULL,
             feedback_requested BOOLEAN NOT NULL DEFAULT 0,
             feedback_token VARCHAR(64) NOT NULL,
-            FOREIGN KEY (meeting_id) REFERENCES MEETING(id)
+            FOREIGN KEY (meeting_uid) REFERENCES MEETING(meeting_uid)
         )
         ''')
         
@@ -62,27 +60,26 @@ class DB:
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS FEEDBACK (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            meeting_id INTEGER NOT NULL,
+            meeting_uid VARCHAR(255) NOT NULL,
             participant_token VARCHAR(64) NOT NULL,
             useful BOOLEAN,
             improvement_text TEXT,
             submitted_at DATETIME,
             anonymized BOOLEAN NOT NULL DEFAULT 0,
-            FOREIGN KEY (meeting_id) REFERENCES MEETING(id)
+            FOREIGN KEY (meeting_uid) REFERENCES MEETING(meeting_uid)
         )
         ''')
         
         # Create indices for faster lookups
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_meeting_uid ON MEETING(meeting_uid)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_feedback_token ON MEETING(feedback_token)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_participant_token ON PARTICIPANT(feedback_token)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_meeting_participant ON PARTICIPANT(meeting_id)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_meeting_feedback ON FEEDBACK(meeting_id)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_meeting_participant ON PARTICIPANT(meeting_uid)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_meeting_feedback ON FEEDBACK(meeting_uid)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_participant_feedback ON FEEDBACK(participant_token)')
         
         conn.commit()
         conn.close()
-        
+
     def _get_connection(self) -> sqlite3.Connection:
         """
         Returns a connection to the SQLite database
@@ -91,20 +88,21 @@ class DB:
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         return conn
         
-    def add_meeting(self, meeting_details: Dict[str, Any]) -> Optional[int]:
+    def add_meeting(self, meeting_details: Dict[str, Any]) -> None:
         """
-        Adds a meeting to the database based on the output from parse_meeting_details
+        Adds meeting to database based on parse_meeting_details output.
+        Skips if meeting already exists (based on meeting_uid).
         
         Args:
-            meeting_details: Dictionary containing meeting details from parse_meeting_details
+            meeting_details: Meeting details dictionary
             
         Returns:
-            The ID of the newly created meeting
+            meeting_uid of the created/existing meeting
             
         Example input:
         {
             'participants': ['mdh', 'crh'],
-            'organizer': 'John Smith <mdh@deif.com>',
+            'organizer': 'mdh@deif.com',
             'from': 'mdh@deif.com',
             'subject': 'Weekly Planning Meeting',
             'date': '2025-08-29 14:30:00',
@@ -116,12 +114,24 @@ class DB:
         conn = self._get_connection()
         cursor = conn.cursor()
         
-        # Parse start and end times from date and duration
+        # Check if meeting already exists to avoid duplicates
+        meeting_uid = meeting_details.get('meeting_id', '')
+        cursor.execute("SELECT meeting_uid FROM MEETING WHERE meeting_uid = ?", (meeting_uid,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # No mames, this meeting already exists pendejo!
+            conn.close()
+            return meeting_uid
+        
+        # Parse times
         start_time = datetime.strptime(meeting_details.get('date', ''), '%Y-%m-%d %H:%M:%S')
-        duration = meeting_details.get('duration', 60)  # Default to 60 minutes if not specified
+        duration = meeting_details.get('duration', 60)
+        if duration is None:
+            duration = 60  # Fallback for None
         end_time = start_time + timedelta(minutes=duration)
         
-        # Generate a unique token for meeting feedback
+        # Generate token
         feedback_token = str(uuid.uuid4())
         
         # Insert meeting record
@@ -131,7 +141,7 @@ class DB:
             duration_minutes, total_cost, feedback_sent, feedback_token
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            meeting_details.get('meeting_id', ''),
+            meeting_uid,
             meeting_details.get('from', ''),
             meeting_details.get('subject', 'Untitled Meeting'),
             start_time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -142,20 +152,17 @@ class DB:
             feedback_token
         ))
         
-        meeting_id = cursor.lastrowid
-        
         # Add participants
         for participant in meeting_details.get('participants', []):
-            # Use the username_to_wage function from bot.py to get participant's role and hourly cost
-            # For testing, this can be imported or re-implemented here
+            # Get wage
             from src.bot.bot import username_to_wage
             hourly_cost = username_to_wage(participant)
             
-            # Generate unique token for this participant's feedback
+            # Generate token
             participant_token = str(uuid.uuid4())
             
-            # Extract role from initials or provide default
-            role = "Unknown"  # Default role
+            # Get role 
+            role = "Unknown"
             role_lookup_path = os.path.join(os.path.dirname(__file__), '../../config/initials_role_lookup.csv')
             if os.path.exists(role_lookup_path):
                 with open(role_lookup_path, newline='') as f:
@@ -163,26 +170,26 @@ class DB:
                         if len(row) == 2 and row[0].strip().lower() == participant.lower():
                             role = row[1].strip()
                             break
-            
-            # Construct email from initials if missing
+        
+            # Construct email
             email = f"{participant}@deif.com"
             
             cursor.execute('''
             INSERT INTO PARTICIPANT (
-                meeting_id, email, initials, role, hourly_cost, 
+                meeting_uid, email, initials, role, hourly_cost, 
                 feedback_requested, feedback_token
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
-                meeting_id,
+                meeting_uid,
                 email,
                 participant,
                 role,
                 hourly_cost,
-                True,  # Default to requesting feedback
+                True,
                 participant_token
             ))
-        
+    
         conn.commit()
         conn.close()
         
-        return meeting_id
+        return

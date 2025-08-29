@@ -35,7 +35,7 @@ def test_db_structure_matches_diagram(test_db):
     # Check MEETING table structure
     cursor.execute("PRAGMA table_info(MEETING)")
     columns = {row[1] for row in cursor.fetchall()}
-    meeting_fields = {"id", "meeting_uid", "organizer_email", "subject", "start_time", 
+    meeting_fields = {"meeting_uid", "organizer_email", "subject", "start_time", 
                       "end_time", "duration_minutes", "total_cost", "feedback_sent", 
                       "feedback_token"}
     for field in meeting_fields:
@@ -44,7 +44,7 @@ def test_db_structure_matches_diagram(test_db):
     # Check PARTICIPANT table structure
     cursor.execute("PRAGMA table_info(PARTICIPANT)")
     columns = {row[1] for row in cursor.fetchall()}
-    participant_fields = {"id", "meeting_id", "email", "initials", "role", 
+    participant_fields = {"id", "meeting_uid", "email", "initials", "role", 
                           "hourly_cost", "feedback_requested", "feedback_token"}
     for field in participant_fields:
         assert field in columns, f"Field {field} missing from PARTICIPANT table"
@@ -52,7 +52,7 @@ def test_db_structure_matches_diagram(test_db):
     # Check FEEDBACK table structure
     cursor.execute("PRAGMA table_info(FEEDBACK)")
     columns = {row[1] for row in cursor.fetchall()}
-    feedback_fields = {"id", "meeting_id", "participant_token", "useful",
+    feedback_fields = {"id", "meeting_uid", "participant_token", "useful",
                        "improvement_text", "submitted_at", "anonymized"}
     for field in feedback_fields:
         assert field in columns, f"Field {field} missing from FEEDBACK table"
@@ -81,17 +81,17 @@ def test_add_meeting(test_db):
         }
         
         # Add the meeting to the database
-        meeting_id = test_db.add_meeting(sample_meeting)
+        meeting_uid = test_db.add_meeting(sample_meeting)
         
         # Verify meeting was added correctly
-        assert meeting_id is not None, "Meeting ID should not be None"
+        assert meeting_uid is not None, "Meeting ID should not be None"
         
         conn = sqlite3.connect(test_db.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         # Check meeting record
-        cursor.execute("SELECT * FROM MEETING WHERE id = ?", (meeting_id,))
+        cursor.execute("SELECT * FROM MEETING WHERE meeting_uid = ?", (meeting_uid,))
         meeting = cursor.fetchone()
         assert meeting is not None, "Meeting record not found"
         assert meeting['meeting_uid'] == sample_meeting['meeting_id']
@@ -103,7 +103,7 @@ def test_add_meeting(test_db):
         assert len(meeting['feedback_token']) > 0
         
         # Check participant records
-        cursor.execute("SELECT * FROM PARTICIPANT WHERE meeting_id = ?", (meeting_id,))
+        cursor.execute("SELECT * FROM PARTICIPANT WHERE meeting_uid = ?", (meeting_uid,))
         participants = cursor.fetchall()
         
         assert len(participants) == 2, "Should have 2 participant records"

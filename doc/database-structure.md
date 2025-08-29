@@ -3,8 +3,7 @@
 ```mermaid
 erDiagram
     MEETING {
-        id INT PK
-        meeting_uid VARCHAR "Teams/Calendar ID"
+        meeting_uid VARCHAR PK "Teams/Calendar ID"
         organizer_email VARCHAR
         subject VARCHAR
         start_time DATETIME
@@ -16,7 +15,7 @@ erDiagram
     }
     PARTICIPANT {
         id INT PK
-        meeting_id INT FK
+        meeting_uid VARCHAR FK
         email VARCHAR
         initials VARCHAR
         role VARCHAR
@@ -26,7 +25,7 @@ erDiagram
     }
     FEEDBACK {
         id INT PK
-        meeting_id INT FK
+        meeting_uid VARCHAR FK
         participant_token VARCHAR
         useful BOOLEAN
         improvement_text TEXT
