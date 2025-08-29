@@ -27,7 +27,31 @@ def test_db_structure_matches_diagram(test_db):
     tables = [row[0] for row in cursor.fetchall() if row[0] != 'sqlite_sequence']
     
     # Add assertions based on database-structure.md
-    # Replace these with the actual table names from your diagram
-    expected_tables = ["meetings", "participants", "roles", "wages"]
+    expected_tables = ["MEETING", "PARTICIPANT", "FEEDBACK"]
     for table in expected_tables:
         assert table in tables, f"Table {table} missing from database"
+    
+    # Check MEETING table structure
+    cursor.execute("PRAGMA table_info(MEETING)")
+    columns = {row[1] for row in cursor.fetchall()}
+    meeting_fields = {"id", "meeting_uid", "organizer_email", "subject", "start_time", 
+                      "end_time", "duration_minutes", "total_cost", "feedback_sent", 
+                      "feedback_token"}
+    for field in meeting_fields:
+        assert field in columns, f"Field {field} missing from MEETING table"
+    
+    # Check PARTICIPANT table structure
+    cursor.execute("PRAGMA table_info(PARTICIPANT)")
+    columns = {row[1] for row in cursor.fetchall()}
+    participant_fields = {"id", "meeting_id", "email", "initials", "role", 
+                          "hourly_cost", "feedback_requested", "feedback_token"}
+    for field in participant_fields:
+        assert field in columns, f"Field {field} missing from PARTICIPANT table"
+        
+    # Check FEEDBACK table structure
+    cursor.execute("PRAGMA table_info(FEEDBACK)")
+    columns = {row[1] for row in cursor.fetchall()}
+    feedback_fields = {"id", "meeting_id", "participant_token", "useful",
+                       "improvement_text", "submitted_at", "anonymized"}
+    for field in feedback_fields:
+        assert field in columns, f"Field {field} missing from FEEDBACK table"

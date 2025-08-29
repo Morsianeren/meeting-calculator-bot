@@ -25,8 +25,8 @@ class Bot:
             meetings = self.parse_meeting_details()
             for details in meetings:
                 cost, explanation = self.calculate_meeting_cost(details)
-                self.email_server.send_email(details['from'], f"{details['subject']} - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
-                print(f"Processed meeting '{details['subject']}' with cost {cost} to {details['from']}")
+                self.email_server.send_email(details['from'], f"{details['subject']} [ID: {details['meeting_id']}] - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
+                print(f"Processed meeting '{details['subject']}'[ID: {details['meeting_id']}] with cost {cost} to {details['from']}")
             time.sleep(60) # Poll every minute
 
     def extract_usernames_from_fields(self, fields):
@@ -43,6 +43,17 @@ class Bot:
         all_emails = {email.lower() for email in all_emails}
         return sorted(all_emails)
 
+    def extract_teams_meeting_id(self, body: str) -> str:
+        """
+        Extracts the Teams meeting ID from email body.
+        Returns empty string if not found.
+        """
+        meeting_id_match = re.search(r'Meeting ID:[\s]*([0-9\s]+)', body)
+        if meeting_id_match:
+            # Remove spaces from meeting ID
+            return re.sub(r'\s+', '', meeting_id_match.group(1))
+        return ""
+
     def parse_meeting_details(self) -> list:
         emails_dict = self.email_server.poll_for_new_emails()
         meetings = []
@@ -57,6 +68,7 @@ class Bot:
             participants = self.extract_usernames_from_fields(fields)
             body = mail.get('body', '')
             duration = self.extract_duration_from_body(body)
+            meeting_id = self.extract_teams_meeting_id(body)
             meetings.append({
                 'participants': participants,
                 'organizer': mail.get('from', ''),
@@ -65,6 +77,7 @@ class Bot:
                 'date': mail.get('date', ''),
                 'body': body,
                 'duration': duration,
+                'meeting_id': meeting_id,
             })
         return meetings
 
