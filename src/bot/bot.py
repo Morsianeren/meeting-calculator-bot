@@ -24,9 +24,9 @@ class Bot:
         while True:
             meetings = self.parse_meeting_details()
             for details in meetings:
-                wages = self.db.lookup_roles_and_wages(details['participants'])
-                cost = self.calculate_meeting_cost(details, wages)
+                cost = self.calculate_meeting_cost(details)
                 self.email_server.send_email(details['organizer'], "Meeting Cost Summary", f"Cost: {cost}")
+                print(f"Processed meeting '{details['subject']}' with cost {cost} to {details['organizer']}")
             time.sleep(60) # Poll every minute
 
     def extract_usernames_from_fields(self, fields):
@@ -42,18 +42,47 @@ class Bot:
         for eid, mail in emails_dict.items():
             fields = [mail.get('from', ''), mail.get('body', '')]
             participants = self.extract_usernames_from_fields(fields)
+            body = mail.get('body', '')
+            duration = self.extract_duration_from_body(body)
             meetings.append({
                 'participants': participants,
                 'organizer': mail.get('from', ''),
                 'subject': mail.get('subject', ''),
                 'date': mail.get('date', ''),
-                'body': mail.get('body', ''),
+                'body': body,
+                'duration': duration,
             })
         return meetings
 
-    def calculate_meeting_cost(self, details: dict, wages: dict) -> int:
-        # Dummy: Replace with cost calculation logic
-        return sum(wages.values())
+    def calculate_meeting_cost(self, details: dict) -> float:
+        """
+        Calculate the total meeting cost by summing wage * duration(hours) for each participant.
+        Uses username_to_wage for each participant.
+        """
+        duration_min = details.get('duration')
+        if duration_min is None or duration_min <= 0:
+            duration_hr = 1.0  # Default to 1 hour if duration is missing or invalid
+        else:
+            duration_hr = duration_min / 60.0
+        total_cost = 0.0
+        for username in details.get('participants', []):
+            total_cost += username_to_wage(username) * duration_hr
+        return total_cost
+
+    def extract_duration_from_body(self, body: str) -> int:
+        """
+        Extracts meeting duration in minutes from the 'When:' line in the email body.
+        Example line: 'When: 29 August 2025 21:00-21:30.'
+        Returns duration in minutes, or None if not found.
+        """
+        match = re.search(r'When:.*?(\d{2}:\d{2})-(\d{2}:\d{2})', body)
+        if match:
+            start = match.group(1)
+            end = match.group(2)
+            h1, m1 = map(int, start.split(':'))
+            h2, m2 = map(int, end.split(':'))
+            return (h2 * 60 + m2) - (h1 * 60 + m1)
+        return None
 
 def username_to_wage(user: str) -> float:
     role_lookup_path = os.path.join(os.path.dirname(__file__), '../../config/initials_role_lookup.csv')

@@ -5,6 +5,8 @@ from email.header import decode_header
 import email
 import imaplib
 import os
+import smtplib
+from email.mime.text import MIMEText
 
 class EmailServer:
 
@@ -20,6 +22,13 @@ class EmailServer:
                     - from (str)
                     - date (str)
                     - body (str, plain text if available)
+
+        Example:
+            {'10': 
+                {'subject': 'FW: Testmøde - Ignorer', 
+                 'from': 'Magnus Blach Klokker <mak@deif.com>', 
+                 'date': 'Fri, 29 Aug 2025 07:05:03 +0000', 
+                 'body': '________________________________\r\nFrom: Magnus Blach Klokker <mak@deif.com>\r\nSent: 26 August 2025 20:35:20 (UTC+01:00) Brussels, Copenhagen, Madrid, Paris\r\nTo: Christian Raun Hornebo <crh@deif.com>\r\nCc: morsianeren@gmail.com <morsianeren@gmail.com>; meeting-bot@gmx.com <meeting-bot@gmx.com>; meeting-tester@gmx.com <meeting-tester@gmx.com>\r\nSubject: Testmde - Ignorer\r\nWhen: 29 August 2025 21:00-21:30.\r\nWhere: Deif Placering\r\n\r\n\r\ntestbeskrivelse'}}
         """
         IMAP_SERVER = os.getenv('IMAP_HOST', 'imap.gmx.com')
         EMAIL_ACCOUNT = os.getenv('IMAP_USER', 'meeting-tester@gmx.com')
@@ -77,8 +86,20 @@ class EmailServer:
         return emails_dict
     
     def send_email(self, recipient: str, subject: str, body: str):
-        # Dummy: Replace with SMTP logic
-        pass
+        SMTP_SERVER = os.getenv('SMTP_HOST', 'smtp.gmx.com')
+        SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
+        EMAIL_ACCOUNT = os.getenv('SMTP_USER', 'meeting-tester@gmx.com')
+        PASSWORD = os.getenv('SMTP_PASS', 'QWERTa123!')
+
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = EMAIL_ACCOUNT
+        msg['To'] = recipient
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_ACCOUNT, PASSWORD)
+            server.sendmail(EMAIL_ACCOUNT, [recipient], msg.as_string())
 
 def clean_text(text):
     """Decode and clean email headers."""

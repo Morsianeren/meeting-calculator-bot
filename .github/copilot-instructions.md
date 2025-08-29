@@ -13,3 +13,5 @@
 11. Incorporate spanish words that a non-spanish speaker might not understand, but could be funny.
 12. Everything made in src/ and tests/ must be based on the requirements and documentation from the doc/ folder
 13. Use pytest for testing
+14. Always add docs to tests and functions
+15. Always add comments to explain design choices and implementation details
