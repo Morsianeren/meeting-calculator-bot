@@ -2,6 +2,7 @@
 import os
 import pytest
 import sqlite3
+from unittest.mock import patch
 from src.bot.db import DB
 
 @pytest.fixture
@@ -55,3 +56,72 @@ def test_db_structure_matches_diagram(test_db):
                        "improvement_text", "submitted_at", "anonymized"}
     for field in feedback_fields:
         assert field in columns, f"Field {field} missing from FEEDBACK table"
+
+def test_add_meeting(test_db):
+    """Test adding a meeting to the database"""
+    # Mock the username_to_wage function to return a fixed value
+    def mock_username_to_wage(username):
+        wages = {'mdh': 100.0, 'crh': 85.0}
+        return wages.get(username, 0.0)
+    
+    # Apply the patch for username_to_wage function
+    with patch('src.bot.bot.username_to_wage', side_effect=mock_username_to_wage):
+        
+        # Sample meeting data matching the example
+        sample_meeting = {
+            'participants': ['mdh', 'crh'],
+            'organizer': 'mdh@deif.com',
+            'from': 'mdh@deif.com',
+            'subject': 'Weekly Planning Meeting',
+            'date': '2025-08-29 14:30:00',
+            'body': '...',
+            'duration': 60,
+            'meeting_id': '354457537935',
+            'cost': 185.0  # Total cost (100.0 + 85.0)
+        }
+        
+        # Add the meeting to the database
+        meeting_id = test_db.add_meeting(sample_meeting)
+        
+        # Verify meeting was added correctly
+        assert meeting_id is not None, "Meeting ID should not be None"
+        
+        conn = sqlite3.connect(test_db.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Check meeting record
+        cursor.execute("SELECT * FROM MEETING WHERE id = ?", (meeting_id,))
+        meeting = cursor.fetchone()
+        assert meeting is not None, "Meeting record not found"
+        assert meeting['meeting_uid'] == sample_meeting['meeting_id']
+        assert meeting['organizer_email'] == sample_meeting['from']
+        assert meeting['subject'] == sample_meeting['subject']
+        assert meeting['duration_minutes'] == sample_meeting['duration']
+        assert float(meeting['total_cost']) == sample_meeting['cost']
+        assert meeting['feedback_sent'] == 0
+        assert len(meeting['feedback_token']) > 0
+        
+        # Check participant records
+        cursor.execute("SELECT * FROM PARTICIPANT WHERE meeting_id = ?", (meeting_id,))
+        participants = cursor.fetchall()
+        
+        assert len(participants) == 2, "Should have 2 participant records"
+        
+        # Check for each participant
+        participant_initials = [p['initials'] for p in participants]
+        assert 'mdh' in participant_initials
+        assert 'crh' in participant_initials
+        
+        # Check details of one specific participant
+        for participant in participants:
+            if participant['initials'] == 'mdh':
+                assert participant['email'] == 'mdh@deif.com'
+                assert float(participant['hourly_cost']) == 100.0
+                assert participant['feedback_requested'] == 1
+                assert len(participant['feedback_token']) > 0
+            elif participant['initials'] == 'crh':
+                assert participant['email'] == 'crh@deif.com'
+                assert float(participant['hourly_cost']) == 85.0
+        
+        conn.close()

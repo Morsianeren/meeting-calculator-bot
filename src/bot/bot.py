@@ -25,8 +25,17 @@ class Bot:
             meetings = self.parse_meeting_details()
             for details in meetings:
                 cost, explanation = self.calculate_meeting_cost(details)
+                
+                # Add cost to the meeting details
+                details['cost'] = cost
+                
+                # Save meeting in database
+                meeting_id = self.db.add_meeting(details)
+                
+                # Send email notification
                 self.email_server.send_email(details['from'], f"{details['subject']} [ID: {details['meeting_id']}] - Meeting Cost Summary", f"Cost: {cost}\n\n{explanation}")
                 print(f"Processed meeting '{details['subject']}'[ID: {details['meeting_id']}] with cost {cost} to {details['from']}")
+            
             time.sleep(60) # Poll every minute
 
     def extract_usernames_from_fields(self, fields):
